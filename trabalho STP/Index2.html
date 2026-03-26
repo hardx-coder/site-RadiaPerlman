@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RADIA PROTOCOL | Optimization Layer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@300;500&display=swap');
+
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #9d00ff;
+            --neon-red: #ff003c;
+            --neon-green: #00ff9d;
+            --neon-yellow: #ffcc00;
+            --terminal-dark: #05080a;
+            --panel-bg: rgba(10, 20, 30, 0.95);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--terminal-dark);
+            background-image: radial-gradient(circle at 50% 50%, #0a1a2a 0%, #05080a 100%);
+            color: #e0faff;
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0; min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        header {
+            width: 100%; padding: 15px; text-align: center;
+            border-bottom: 1px solid var(--neon-blue);
+            background: var(--panel-bg);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+        }
+
+        #game-container {
+            width: 95%; max-width: 900px; margin: 15px auto;
+            display: grid; grid-template-columns: 1fr 320px; gap: 15px;
+        }
+
+        @media (max-width: 850px) { #game-container { grid-template-columns: 1fr; } .sidebar { order: -1; } }
+
+        .stats-panel {
+            background: var(--panel-bg); border: 1px solid #1a3a4a;
+            padding: 12px; border-radius: 4px;
+            display: flex; justify-content: space-between; margin-bottom: 15px;
+        }
+
+        .stat-box { text-align: center; }
+        .stat-label { font-size: 0.6rem; color: var(--neon-blue); display: block; }
+        .stat-value { font-size: 1.1rem; font-weight: bold; font-family: 'Orbitron'; }
+
+        #grid {
+            display: grid; gap: 4px; background: rgba(0, 243, 255, 0.05);
+            padding: 10px; border: 1px solid #1a3a4a; border-radius: 4px;
+        }
+
+        .cell {
+            aspect-ratio: 1/1; background: rgba(44, 62, 80, 0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; position: relative; transition: 0.2s;
+        }
+
+        .cell.start { background: var(--neon-green) !important; color: black; box-shadow: 0 0 10px var(--neon-green); }
+        .cell.end { background: var(--neon-blue) !important; color: black; box-shadow: 0 0 10px var(--neon-blue); }
+        .cell.rock { background: #1a1a1a !important; border-color: #444; }
+        .cell.path { background: var(--neon-purple); box-shadow: inset 0 0 10px var(--neon-purple); animation: pulse 1.5s infinite; }
+        .cell.bomb-revealed { background: var(--neon-red) !important; box-shadow: 0 0 15px var(--neon-red); }
+
+        body.remover-active .cell.rock:hover { background: var(--neon-yellow) !important; cursor: crosshair; }
+
+        @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
+
+        .sidebar { display: flex; flex-direction: column; gap: 10px; }
+        .console {
+            background: #000; border-left: 3px solid var(--neon-blue);
+            padding: 10px; height: 160px; font-size: 0.75rem;
+            overflow-y: auto; color: var(--neon-green);
+        }
+
+        button {
+            padding: 12px; font-family: 'Orbitron'; font-weight: bold;
+            text-transform: uppercase; border: none; cursor: pointer; transition: 0.2s;
+            clip-path: polygon(5% 0, 100% 0, 100% 75%, 95% 100%, 0 100%, 0 25%);
+        }
+
+        .btn-main { background: var(--neon-blue); color: #000; }
+        .btn-main:disabled { background: #2c3e50; color: #7f8c8d; cursor: not-allowed; }
+        .btn-tool { background: var(--neon-yellow); color: #000; display: flex; justify-content: space-between; }
+        .btn-tool.active { background: #fff; box-shadow: 0 0 15px var(--neon-yellow); }
+        .btn-danger { background: transparent; border: 1px solid var(--neon-red); color: var(--neon-red); }
+
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none;
+            justify-content: center; align-items: center; z-index: 10000; backdrop-filter: blur(8px);
+        }
+        .modal-content {
+            background: var(--panel-bg); padding: 30px; border: 2px solid var(--neon-blue);
+            text-align: center; max-width: 400px; width: 90%;
+        }
+    </style>
+</head>
+<body id="main-body">
+
+<header>
+    <h1 style="font-size: 1.2rem;">RADIA PROTOCOL // OPTIMIZER</h1>
+</header>
+
+<div id="game-container">
+    <main>
+        <div class="stats-panel">
+            <div class="stat-box">
+                <span class="stat-label">INTEGRIDADE</span>
+                <span class="stat-value" id="lives">5</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">REMOVEDORES</span>
+                <span class="stat-value" id="rem-count" style="color: var(--neon-yellow);">5</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">FASE/LEVEL</span>
+                <span class="stat-value"><span id="level">1</span>.<span id="phase">1</span></span>
+            </div>
+        </div>
+        <div id="grid"></div>
+    </main>
+
+    <aside class="sidebar">
+        <div class="console" id="console">> AGUARDANDO COMANDO...</div>
+        
+        <div class="controls-grid" style="display: grid; gap: 8px;">
+            <button id="submit-btn" class="btn-main" onclick="processTransmission()" disabled>Transmitir Dados</button>
+            <button id="rem-btn" class="btn-tool" onclick="toggleRemover()">
+                <span>LIMPAR ROTA</span>
+                <span id="rem-display">5</span>
+            </button>
+            <button class="btn-danger" onclick="location.reload()">Reboot</button>
+        </div>
+
+        <div style="font-size: 0.65rem; color: #88a; padding: 10px; border: 1px dashed #1a3a4a; margin-top: 10px;">
+            [ALERTA]<br>
+            Caminhos ineficientes causam superaquecimento (perda de vida). Tente a rota mais curta!
+        </div>
+    </aside>
+</div>
+
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <h2 id="modal-title" style="font-family: Orbitron; color: var(--neon-blue);">MISSÃO CONCLUÍDA</h2>
+        <p id="modal-body" style="margin: 20px 0;"></p>
+        <button class="btn-main" onclick="location.reload()" style="width: 100%;">Nova Operação</button>
+    </div>
+</div>
+
+<script>
+    const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(f, t, d, v=0.1) {
+        const o = AudioCtx.createOscillator(); const g = AudioCtx.createGain();
+        o.type = t; o.frequency.setValueAtTime(f, AudioCtx.currentTime);
+        g.gain.setValueAtTime(v, AudioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, AudioCtx.currentTime + d);
+        o.connect(g); g.connect(AudioCtx.destination);
+        o.start(); o.stop(AudioCtx.currentTime + d);
+    }
+
+    let state = {
+        lives: 5, level: 1, phase: 1, score: 0,
+        gridSize: 10, selectedPath: [], obstacles: [], bombs: [],
+        removers: 5, isRemoverActive: false, perfectStreak: 0
+    };
+
+    function log(msg, color = "#00ff9d") {
+        const c = document.getElementById('console');
+        c.innerHTML += `<div style="color: ${color}">> ${msg}</div>`;
+        c.scrollTop = c.scrollHeight;
+    }
+
+    function initGrid() {
+        const gridEl = document.getElementById('grid');
+        gridEl.innerHTML = '';
+        gridEl.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
+        state.selectedPath = []; state.obstacles = []; state.bombs = [];
+        state.isRemoverActive = false;
+        document.getElementById('main-body').classList.remove('remover-active');
+        document.getElementById('rem-btn').classList.remove('active');
+
+        // Gerar Obstáculos (Dificuldade escalonável)
+        const obsLimit = 15 + (state.level * 5);
+        while(state.obstacles.length < obsLimit) {
+            let p = `${Math.floor(Math.random()*10)}-${Math.floor(Math.random()*10)}`;
+            if(p !== "0-0" && p !== "9-9" && !state.obstacles.includes(p)) state.obstacles.push(p);
+        }
+
+        // Gerar Bombas (Nível 2+)
+        if(state.level >= 2) {
+            while(state.bombs.length < 6 + state.phase) {
+                let p = `${Math.floor(Math.random()*10)}-${Math.floor(Math.random()*10)}`;
+                if(p !== "0-0" && p !== "9-9" && !state.obstacles.includes(p) && !state.bombs.includes(p)) state.bombs.push(p);
+            }
+        }
+
+        for (let y = 0; y < state.gridSize; y++) {
+            for (let x = 0; x < state.gridSize; x++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                const pos = `${x}-${y}`;
+                cell.dataset.pos = pos;
+                if(pos === "0-0") cell.classList.add('start');
+                else if(pos === "9-9") cell.classList.add('end');
+                else if(state.obstacles.includes(pos)) cell.classList.add('rock');
+                cell.onclick = () => handleCellClick(x, y, cell);
+                gridEl.appendChild(cell);
+            }
+        }
+        updateUI();
+        log(`PROTOCOL ${state.level}.${state.phase} READY.`);
+    }
+
+    function toggleRemover() {
+        if(state.removers <= 0) return;
+        state.isRemoverActive = !state.isRemoverActive;
+        document.getElementById('main-body').classList.toggle('remover-active', state.isRemoverActive);
+        document.getElementById('rem-btn').classList.toggle('active', state.isRemoverActive);
+        playSound(600, 'square', 0.1);
+    }
+
+    function handleCellClick(x, y, el) {
+        const pos = `${x}-${y}`;
+
+        if(state.isRemoverActive) {
+            if(state.obstacles.includes(pos)) {
+                state.obstacles = state.obstacles.filter(p => p !== pos);
+                el.classList.remove('rock');
+                state.removers--;
+                playSound(200, 'sawtooth', 0.3);
+                log(`REMOVED: ${pos}`, "var(--neon-yellow)");
+                toggleRemover();
+                updateUI();
+                validatePath();
+                return;
+            }
+        }
+
+        if(pos === "0-0" || pos === "9-9" || state.obstacles.includes(pos)) return;
+
+        if(state.selectedPath.includes(pos)) {
+            state.selectedPath = state.selectedPath.filter(p => p !== pos);
+            el.classList.remove('path');
+        } else {
+            state.selectedPath.push(pos);
+            el.classList.add('path');
+        }
+        playSound(440, 'sine', 0.05);
+        validatePath();
+    }
+
+    // Dijkstra/BFS para encontrar o caminho ideal (shortest path)
+    function findShortestPath(start, target) {
+        const queue = [[start]];
+        const visited = new Set([start]);
+        while(queue.length > 0) {
+            const path = queue.shift();
+            const curr = path[path.length - 1];
+            if(curr === target) return path.length - 1;
+
+            const [x, y] = curr.split('-').map(Number);
+            const nexts = [`${x+1}-${y}`, `${x-1}-${y}`, `${x}-${y+1}`, `${x}-${y-1}`];
+            for(let n of nexts) {
+                const [nx, ny] = n.split('-').map(Number);
+                if(nx >= 0 && nx < 10 && ny >= 0 && ny < 10 && !state.obstacles.includes(n) && !visited.has(n)) {
+                    visited.add(n);
+                    queue.push([...path, n]);
+                }
+            }
+        }
+        return 999;
+    }
+
+    function validatePath() {
+        const queue = ["0-0"]; const visited = new Set(["0-0"]); let found = false;
+        while(queue.length > 0) {
+            const curr = queue.shift();
+            if(curr === "9-9") { found = true; break; }
+            const [x, y] = curr.split('-').map(Number);
+            const nId = [`${x+1}-${y}`, `${x-1}-${y}`, `${x}-${y+1}`, `${x}-${y-1}`];
+            for(let n of nId) {
+                if(!visited.has(n) && (state.selectedPath.includes(n) || n === "9-9")) {
+                    visited.add(n); queue.push(n);
+                }
+            }
+        }
+        document.getElementById('submit-btn').disabled = !found;
+    }
+
+    function processTransmission() {
+        const ideal = findShortestPath("0-0", "9-9");
+        const player = state.selectedPath.length + 1;
+        let error = false;
+
+        // Check Bombas
+        state.selectedPath.forEach(p => {
+            if(state.bombs.includes(p)) { error = true; document.querySelector(`[data-pos="${p}"]`).classList.add('bomb-revealed'); }
+        });
+
+        if(error) {
+            state.lives--;
+            state.perfectStreak = 0;
+            log("BOMBA DETECTADA! SISTEMA DANIFICADO.", "var(--neon-red)");
+            playSound(100, 'sawtooth', 0.5);
+        } else {
+            // Check Eficiência
+            if(player > ideal * 1.3) {
+                state.lives--;
+                state.perfectStreak = 0;
+                log(`INEFICIÊNCIA CRÍTICA: L: ${player} / IDEAL: ${ideal}. PERDA DE ENERGIA.`, "orange");
+                playSound(150, 'sawtooth', 0.4);
+            } else {
+                log(`EFICIÊNCIA OTIMIZADA. ROTA VALIDADA.`, "var(--neon-green)");
+                state.perfectStreak++;
+                if(state.perfectStreak >= 2) {
+                    state.removers += 3;
+                    state.perfectStreak = 0;
+                    log("BÔNUS: +3 REMOVEDORES POR DESEMPENHO!", "var(--neon-yellow)");
+                    playSound(800, 'sine', 0.3);
+                }
+                nextPhase();
+            }
+        }
+
+        updateUI();
+        if(state.lives <= 0) gameOver();
+    }
+
+    function nextPhase() {
+        playSound(880, 'sine', 0.2);
+        if(state.phase < 3) state.phase++;
+        else { state.level++; state.phase = 1; }
+        if(state.level > 3) victory();
+        else setTimeout(initGrid, 1000);
+    }
+
+    function updateUI() {
+        document.getElementById('lives').innerText = state.lives;
+        document.getElementById('rem-count').innerText = state.removers;
+        document.getElementById('rem-display').innerText = state.removers;
+        document.getElementById('level').innerText = state.level;
+        document.getElementById('phase').innerText = state.phase;
+        document.getElementById('rem-btn').disabled = state.removers <= 0;
+    }
+
+    function gameOver() {
+        document.getElementById('modal-title').innerText = "SISTEMA OFFLINE";
+        document.getElementById('modal-title').style.color = "var(--neon-red)";
+        document.getElementById('modal-body').innerText = "A rede entrou em colapso por ineficiência.";
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    function victory() {
+        document.getElementById('modal-title').innerText = "PROTOCOLO RADIA COMPLETO";
+        document.getElementById('modal-body').innerText = "Eficiência máxima atingida em todos os nós.";
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    window.onload = initGrid;
+</script>
+</body>
+</html>

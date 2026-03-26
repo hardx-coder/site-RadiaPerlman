@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STP: THE MOTHER OF INTERNET | RADIA'S LEGACY</title>
+    <style>
+        :root {
+            --bg: #03050a;
+            --primary: #00f3ff;
+            --secondary: #9d00ff;
+            --danger: #ff0055;
+            --success: #00ff9d;
+            --warning: #ffcc00;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg);
+            color: #fff;
+            font-family: var(--font-mono);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #root-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas { display: block; image-rendering: pixelated; }
+
+        #hud {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; }
+
+        .stats-panel {
+            background: rgba(0, 10, 20, 0.85);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 10px 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .stat-item label {
+            display: block;
+            font-size: 9px;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .stat-item span { font-size: 22px; font-weight: 900; }
+
+        #level-up-alert {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: var(--success);
+            text-shadow: 0 0 20px var(--success);
+            opacity: 0;
+            transition: opacity 0.5s;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        .terminal {
+            margin-top: auto;
+            width: 400px;
+            height: 180px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            padding: 10px;
+            font-size: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column-reverse;
+            pointer-events: auto;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, rgba(0,15,30,0.9) 0%, #000 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .btn-start {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 15px 50px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-start:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 40px var(--primary);
+        }
+
+        .log-sys { color: var(--success); }
+        .log-err { color: var(--danger); }
+        .log-boss { color: var(--warning); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="root-container">
+    <canvas id="main-stage"></canvas>
+    <div id="level-up-alert">TOPOLOGIA ATUALIZADA!</div>
+
+    <div id="hud">
+        <div class="header">
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <label>NET_STABILITY</label>
+                    <span id="ui-stability">100%</span>
+                </div>
+                <div class="stat-item">
+                    <label>ROOT_BRIDGE_LEVEL</label>
+                    <span id="ui-level" style="color:var(--success)">1</span>
+                </div>
+                <div class="stat-item">
+                    <label>BPDUs_COLLECTED</label>
+                    <span id="ui-score">0</span>
+                </div>
+                <div class="stat-item" id="ammo-panel" style="display:none">
+                    <label>DEFENSE_AMMO</label>
+                    <span id="ui-ammo" style="color:var(--warning)">34</span>
+                </div>
+            </div>
+            <div style="text-align: right">
+                <div style="color: var(--primary); font-size: 11px;">RADIA_OS v2.1 (BOSS_PATCH)</div>
+                <div id="dash-indicator" style="color: var(--success); font-size: 9px; opacity: 0.3;">DASH_READY [SHIFT/SPACE]</div>
+            </div>
+        </div>
+        <div class="terminal" id="terminal-output"></div>
+    </div>
+
+    <div id="boot-overlay" class="overlay">
+        <div id="end-content" style="display:none">
+            <h1 style="font-size: 50px; color: var(--success);">PROTOCOLO CONCLUÍDO</h1>
+            <p id="final-stats" style="margin: 20px 0; font-size: 20px;"></p>
+        </div>
+        <div id="start-content">
+            <h1 style="font-size: 60px; margin-bottom: 10px;">secret protocol</h1>
+            <p style="color: var(--primary); margin-bottom: 30px;">"termine o protocolo se puder"</p>
+        </div>
+        <button class="btn-start" onclick="Kernel.start()">Iniciar Protocolo</button>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+const M = {
+    PI: Math.PI,
+    TWO_PI: Math.PI * 2,
+    lerp: (a, b, t) => a + (b - a) * t,
+    clamp: (v, min, max) => Math.max(min, Math.min(max, v)),
+    project: (x, y, z, fov, w, h) => {
+        const factor = fov / (fov + z);
+        return { x: x * factor + w / 2, y: y * factor + h / 2, scale: factor };
+    }
+};
+
+const AudioKernel = new (class {
+    constructor() { this.ctx = null; }
+    init() {
+        if(this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0.2;
+        this.master.connect(this.ctx.destination);
+    }
+    play(freq, type, dur) {
+        if(!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(0.1, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        osc.connect(g); g.connect(this.master);
+        osc.start(); osc.stop(t + dur);
+    }
+})();
+
+class BaseEntity {
+    constructor() {
+        this.active = false;
+        this.id = Math.random().toString(36).substr(2, 9);
+    }
+}
+
+class NetworkNode extends BaseEntity {
+    constructor() {
+        super();
+        this.pos = { x: 0, y: 0, z: 0 };
+        this.type = 'LOOP';
+        this.rotation = 0;
+    }
+
+    spawn(x, z, type) {
+        this.pos.x = x;
+        this.pos.z = z;
+        this.type = type;
+        this.active = true;
+        this.rotation = Math.random() * Math.PI;
+    }
+
+    update(speed) {
+        this.pos.z -= speed;
+        this.rotation += 0.04;
+        if(this.pos.z < -200) this.active = false;
+    }
+}
+
+const Kernel = {
+    config: {
+        fov: 700,
+        baseSpeed: 8,
+        maxSpeed: 50,
+        spawnInterval: 25,
+        gridSize: 250
+    },
+
+    state: {
+        running: false,
+        level: 1,
+        score: 0,
+        collectedInLevel: 0,
+        stability: 100,
+        speed: 8,
+        originalSpeed: 8,
+        time: 0,
+        startTime: 0,
+        lastFrameTime: 0,
+        shake: 0,
+        ammo: 34,
+        bossActive: false,
+        bossPhase: 0, // 1: Boss 1, 2: Boss 2, 3: Final
+        isDashing: false
+    },
+
+    canvas: document.getElementById('main-stage'),
+    ctx: null,
+
+    player: {
+        pos: { x: 0, y: 0 },
+        targetX: 0,
+        tilt: 0
+    },
+
+    pools: {
+        nodes: Array.from({ length: 150 }, () => new NetworkNode())
+    },
+
+    start() {
+        if(this.state.running) return;
+
+        this.state = {
+            ...this.state,
+            running: true,
+            level: 1,
+            score: 0,
+            collectedInLevel: 0,
+            stability: 100,
+            speed: this.config.baseSpeed,
+            originalSpeed: this.config.baseSpeed,
+            time: 0,
+            startTime: Date.now(),
+            ammo: 34,
+            bossActive: false,
+            bossPhase: 0,
+            isDashing: false
+        };
+
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        AudioKernel.init();
+        this.pools.nodes.forEach(n => n.active = false);
+
+        document.getElementById('boot-overlay').style.display = 'none';
+        document.getElementById('ammo-panel').style.display = 'none';
+        this.setupEventListeners();
+
+        this.log("SISTEMA: Inicializando Spanning Tree Protocol...", "log-sys");
+        this.updateUI();
+        requestAnimationFrame((t) => this.mainLoop(t));
+    },
+
+    setupEventListeners() {
+        window.addEventListener('resize', () => this.resize());
+        window.addEventListener('mousemove', (e) => {
+            this.player.targetX = e.clientX - this.canvas.width / 2;
+        });
+        window.addEventListener('mousedown', (e) => {
+            if(e.button === 0) this.shoot();
+        });
+        window.addEventListener('keydown', (e) => {
+            if((e.key === 'Shift' || e.key === ' ') && !this.state.isDashing) {
+                this.state.isDashing = true;
+                this.state.originalSpeed = this.state.speed;
+                this.state.speed *= 2.2;
+                document.getElementById('dash-indicator').style.opacity = "1";
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if(e.key === 'Shift' || e.key === ' ') {
+                this.state.isDashing = false;
+                this.state.speed = this.state.originalSpeed;
+                document.getElementById('dash-indicator').style.opacity = "0.3";
+            }
+        });
+    },
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.player.pos.y = this.canvas.height * 0.85;
+    },
+
+    shoot() {
+        if(!this.state.bossActive || this.state.ammo <= 0) return;
+
+        this.state.ammo--;
+        AudioKernel.play(800, 'square', 0.05);
+        this.state.shake = 5;
+
+        // Destruir obstáculos em linha reta
+        const pX = this.player.pos.x;
+        this.pools.nodes.forEach(n => {
+            if(n.active && n.type === 'LOOP' && Math.abs(n.pos.x - pX) < 120 && n.pos.z < 1500) {
+                n.active = false;
+                this.state.score += 2;
+            }
+        });
+        this.updateUI();
+    },
+
+    checkLevelUp() {
+        if (this.state.collectedInLevel >= 10) {
+            this.state.level++;
+            this.state.collectedInLevel = 0;
+            this.state.stability = Math.min(100, this.state.stability + 20);
+
+        // Aumento de velocidade a cada 5 níveis (Dobrado para +10)
+if(this.state.level % 5 === 0) {
+    this.state.speed += 10; // Antes era +5, agora dobra o ganho
+    this.state.originalSpeed = this.state.speed;
+    this.log("NETWORK_UPGRADE: Largura de banda otimizada. Velocidade ++", "log-sys");
+}
+
+            // Trigger Bosses
+            if(this.state.level === 4 && this.state.bossPhase === 0) this.triggerBoss(1);
+            if(this.state.level === 8 && this.state.bossPhase === 1) this.triggerBoss(2);
+            if(this.state.level === 11) this.triggerFinal();
+
+            AudioKernel.play(440, 'square', 0.3);
+            const alert = document.getElementById('level-up-alert');
+            alert.innerText = `NÍVEL ${this.state.level}`;
+            alert.style.opacity = '1';
+            this.updateUI();
+            setTimeout(() => alert.style.opacity = '0', 2000);
+        }
+    },
+
+    triggerBoss(phase) {
+        this.state.bossActive = true;
+        this.state.bossPhase = phase;
+        document.getElementById('ammo-panel').style.display = 'block';
+        this.log(`ALERTA: Firewall corrompido detectado! BOSS_${phase} ATIVO.`, "log-boss");
+
+        const rows = phase === 1 ? 1 : 3;
+        for(let r = 0; r < rows; r++) {
+            for(let i = -5; i <= 5; i++) {
+                const node = this.pools.nodes.find(n => !n.active);
+                if(node) node.spawn(i * 180, 2500 + (r * 300), 'LOOP');
+            }
+        }
+
+        setTimeout(() => {
+            this.state.bossActive = false;
+            this.log(`BOSS_${phase} SUPERADO. Retornando ao fluxo padrão.`, "log-sys");
+        }, 8000);
+    },
+
+    triggerFinal() {
+        this.state.running = false;
+        const totalTime = ((Date.now() - this.state.startTime) / 1000).toFixed(2);
+        document.getElementById('start-content').style.display = 'none';
+        document.getElementById('end-content').style.display = 'block';
+        document.getElementById('final-stats').innerText = `TEMPO: ${totalTime}s | BPDUs: ${this.state.score}`;
+        document.getElementById('boot-overlay').style.display = 'flex';
+    },
+
+    processPhysics(dt) {
+        this.state.time++;
+        let dx = this.player.targetX - this.player.pos.x;
+        this.player.pos.x += dx * 0.15;
+        this.player.tilt = dx * 0.005;
+
+        // Spawn Lógica (+12% de obstáculos vermelhos -> threshold 0.336)
+        if(this.state.time % this.config.spawnInterval === 0 && !this.state.bossActive) {
+            const node = this.pools.nodes.find(n => !n.active);
+            if(node) {
+                const lane = (Math.random() - 0.5) * 1200;
+                // Ajustado para 12% mais obstáculos vermelhos que o original
+                const isBPDU = Math.random() > 0.336;
+                node.spawn(lane, 3500, isBPDU ? 'BPDU' : 'LOOP');
+            }
+        }
+
+        this.pools.nodes.forEach(node => {
+            if(!node.active) return;
+            node.update(this.state.speed);
+
+            if(node.pos.z < 100 && node.pos.z > 0) {
+                const distance = Math.abs(node.pos.x - this.player.pos.x);
+                if(distance < 90) {
+                    if(node.type === 'BPDU') {
+                        node.active = false;
+                        this.state.score++;
+                        this.state.collectedInLevel++;
+                        this.state.stability = Math.min(100, this.state.stability + 4);
+                        AudioKernel.play(660, 'sine', 0.1);
+                        this.updateUI();
+                        this.checkLevelUp();
+                    } else {
+                        this.handleCrash();
+                        node.active = false;
+                    }
+                }
+            }
+        });
+
+        if(this.state.shake > 0) this.state.shake *= 0.9;
+    },
+
+    handleCrash() {
+        this.state.stability -= 35;
+        this.state.shake = 20;
+        AudioKernel.play(150, 'sawtooth', 0.3);
+        this.log("LOOP_DETECTED: Estabilidade reduzida.", "log-err");
+        this.updateUI();
+
+        if(this.state.stability <= 0) {
+            this.state.running = false;
+            this.log("FATAL_ERROR: Colapso da árvore.", "log-err");
+            setTimeout(() => {
+                document.getElementById('boot-overlay').style.display = 'flex';
+            }, 1000);
+        }
+    },
+
+    updateUI() {
+        document.getElementById('ui-score').innerText = this.state.score;
+        document.getElementById('ui-level').innerText = this.state.level;
+        document.getElementById('ui-stability').innerText = Math.ceil(this.state.stability) + "%";
+        document.getElementById('ui-ammo').innerText = this.state.ammo;
+        document.getElementById('ui-stability').style.color = this.state.stability < 40 ? "var(--danger)" : "var(--success)";
+    },
+
+    log(msg, className) {
+        const term = document.getElementById('terminal-output');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${className}`;
+        entry.innerText = `> ${msg}`;
+        term.prepend(entry);
+    },
+
+    render() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.fillStyle = 'rgba(3, 5, 10, 0.4)';
+        ctx.fillRect(0, 0, w, h);
+
+        if (this.state.shake > 0.1) {
+            ctx.save();
+            ctx.translate((Math.random()-0.5)*this.state.shake, (Math.random()-0.5)*this.state.shake);
+        }
+
+        this.drawGrid(ctx, w, h);
+        this.drawEntities(ctx, w, h);
+        this.drawPlayer(ctx, w, h);
+
+        if (this.state.shake > 0.1) ctx.restore();
+    },
+
+    drawGrid(ctx, w, h) {
+        const fov = this.config.fov;
+        const speedOffset = (this.state.time * this.state.speed) % this.config.gridSize;
+        ctx.lineWidth = 1;
+
+        for (let x = -2000; x <= 2000; x += this.config.gridSize) {
+            const p1 = M.project(x, 250, 4000, fov, w, h);
+            const p2 = M.project(x, 250, 0, fov, w, h);
+            ctx.strokeStyle = `rgba(0, 243, 255, 0.1)`;
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        }
+
+        for (let z = 4000; z >= 0; z -= this.config.gridSize) {
+            const p1 = M.project(-2000, 250, z - speedOffset, fov, w, h);
+            const p2 = M.project(2000, 250, z - speedOffset, fov, w, h);
+            ctx.strokeStyle = `rgba(0, 243, 255, ${0.3 * (1 - z/4000)})`;
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        }
+    },
+
+    drawEntities(ctx, w, h) {
+        this.pools.nodes.forEach(n => {
+            if(!n.active) return;
+            const p = M.project(n.pos.x, 250, n.pos.z, this.config.fov, w, h);
+            if(p.scale <= 0) return;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.scale(p.scale, p.scale);
+            ctx.rotate(n.rotation);
+
+            if(n.type === 'LOOP') {
+                ctx.strokeStyle = '#ff0055';
+                ctx.shadowBlur = 15; ctx.shadowColor = '#ff0055';
+                ctx.strokeRect(-40, -40, 80, 80);
+                ctx.strokeRect(-20, -20, 40, 40);
+            } else {
+                ctx.fillStyle = '#00f3ff';
+                ctx.shadowBlur = 20; ctx.shadowColor = '#00f3ff';
+                ctx.beginPath(); ctx.moveTo(0,-50); ctx.lineTo(40,0); ctx.lineTo(0,50); ctx.lineTo(-40,0); ctx.fill();
+            }
+            ctx.restore();
+        });
+    },
+
+    drawPlayer(ctx, w, h) {
+        const px = this.player.pos.x + w / 2;
+        const py = this.player.pos.y;
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(this.player.tilt);
+
+        // Aura de Dash
+        if(this.state.isDashing) {
+            ctx.strokeStyle = 'rgba(0, 255, 157, 0.5)';
+            ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.arc(0, 0, 70 + Math.sin(this.state.time*0.2)*10, 0, 7); ctx.stroke();
+        }
+
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 30; ctx.shadowColor = this.state.stability > 40 ? '#00ff9d' : '#ff0055';
+        ctx.beginPath();
+        ctx.moveTo(0, -50); ctx.lineTo(40, 25); ctx.lineTo(0, 10); ctx.lineTo(-40, 25);
+        ctx.fill();
+        ctx.restore();
+    },
+
+    mainLoop(timestamp) {
+        const dt = timestamp - this.state.lastFrameTime;
+        this.state.lastFrameTime = timestamp;
+        if (this.state.running) {
+            this.processPhysics(dt || 16);
+            this.render();
+            requestAnimationFrame((t) => this.mainLoop(t));
+        } else { this.render(); }
+    }
+};
+
+window.Kernel = Kernel;
+</script>
+</body>
+</html>

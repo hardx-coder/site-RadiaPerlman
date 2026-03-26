@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radia Perlman: A Mãe da Internet</title>
+    <style>
+        :root {
+            --primary: #00d4ff;
+            --secondary: #0055ff;
+            --bg: #0a0b10;
+            --text: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(135deg, #001f3f, #000);
+            padding: 60px 20px;
+            text-align: center;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        h1 { margin: 0; font-size: 4rem; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; }
+
+        p.subtitle {font-style: italic;color: rgba(255, 255, 255, 0.6);animation: aguaFade 3s ease-in-out infinite;}
+
+@keyframes aguaFade {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 0.12; }
+  100% { opacity: 0.6; }
+}
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+
+        section { margin-bottom: 50px; background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px; }
+
+        h2 { border-left: 5px solid var(--primary); padding-left: 15px; color: var(--primary); }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+        .profile-img {
+            width: 100%; max-width: 300px; border-radius: 10px;
+            border: 2px solid var(--primary); display: block; margin: 20px auto;
+        }
+
+        ul { list-style: none; padding: 0; }
+        ul li::before { content: "▹ "; color: var(--primary); }
+
+        .btn-container { text-align: center; margin-top: 50px; }
+        .btn-game {
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            color: white; padding: 15px 40px; border: none; border-radius: 30px;
+            font-size: 1.2rem; font-weight: bold; cursor: pointer; text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s; display: inline-block;
+        }
+        .btn-game:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--primary); }
+
+        .gigante {
+  font-size: 80px;
+}
+.txt1 {
+  text-align: left;
+   font-size: 23.2px;
+
+}
+ .txt2 {
+  text-align: left;
+   font-size: 23.2px;
+
+}
+    </style>
+</head>
+<body>
+
+<header>
+    <p class="gigante">Radia Perlman</p>
+    <p class="subtitle">A arquiteta que ensinou as redes a encontrarem o caminho.</p>
+</header>
+
+<div class="container">
+    <section>
+        <h2>Quem é Radia?</h2>
+        <div class="info-grid">
+            <div>
+                <p class="txt1">Radia Joy Perlman (1951) é uma cientista da computação, engenheira de redes e programadora americana. Frequentemente chamada de <strong>"Mãe da Internet"</strong>, um título que ela humildemente prefere evitar, ela foi fundamental para o desenvolvimento da tecnologia que mantém o mundo conectado.</p>
+            </div>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Radia_Perlman_2009.jpg/960px-Radia_Perlman_2009.jpg" alt="Radia Perlman" class="profile-img">
+        </div>
+    </section>
+
+    <section class="txt2">
+        <h2>Educação e Mente Matemática</h2>
+        <p>Radia sempre teve uma facilidade incrível com lógica e matemática. Ela estudou no <strong>MIT (Massachusetts Institute of Technology)</strong>, onde obteve:</p>
+        <ul>
+            <li>Bacharelado em Matemática.</li>
+            <li>Mestrado em Matemática.</li>
+            <li>Doutorado (Ph.D.) em Ciências da Computação.</li>
+        </ul>
+        <p>Sua tese de doutorado focou em como rotear dados mesmo quando partes da rede falham ou sofrem ataques (redes robustas).</p>
+    </section>
+
+    <section>
+        <h2>O Feito Épico: STP (Spanning Tree Protocol)</h2>
+        <p>Em 1985, enquanto trabalhava na Digital Equipment Corporation (DEC), ela resolveu um problema crítico: como evitar que pacotes de dados fiquem dando voltas infinitas em uma rede (loops). Ela criou o <strong>STP</strong> em menos de uma semana, e até escreveu um poema sobre isso!</p>
+        <blockquote>
+            "Espero que nunca vejamos um gráfico mais adorável que uma árvore..."
+        </blockquote>
+    </section>
+
+    <div class="btn-container">
+        <a href="index2.html" class="btn-game">INICIAR DESAFIO: FAST CONNECT</a>
+    </div>
+     <div class="btn-container">
+        <a href="index3.html" class="btn-game">EXEMPLO DO STP</a>
+    </div>
+      <div class="btn-container">
+        <a href="index4.html" class="btn-game"> PROTOCOL OVERLORD | LEGACY EDITION</a>
+    </div>
+     <div class="btn-container">
+        <a href="index5.html" class="btn-game"> SECURITY PROTOCOL</a>
+    </div>
+</div>
+
+</body>
+</html>

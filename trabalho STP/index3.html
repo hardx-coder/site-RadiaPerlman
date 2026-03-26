@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radia Perlman | Lab de Conectividade</title>
+    <style>
+        :root {
+            --accent: #00ff88;
+            --danger: #ff4444;
+            --dark: #0f172a;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--dark);
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 2rem;
+            text-align: center;
+            background: rgba(255,255,255,0.03);
+        }
+
+        .lab-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #network-canvas {
+            border: 1px solid rgba(255,255,255,0.1);
+            background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+            border-radius: 20px;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 20px;
+            border-radius: 50px;
+            display: flex;
+            gap: 20px;
+            border: 1px solid var(--accent);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .toggle-btn {
+            padding: 12px 30px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-stp { background: var(--accent); color: #000; }
+        .btn-stp.off { background: var(--danger); color: white; }
+
+        .info-box {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            max-width: 250px;
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-nav {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+
+        .btn-back {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+            border: 1px solid var(--accent);
+            padding: 8px 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2 style="margin:0; color: var(--accent);">Laboratório Visual: O Poder do Algoritmo</h2>
+    <p style="opacity: 0.7; font-size: 0.9rem;">Entenda por que Radia salvou a internet do colapso.</p>
+</header>
+
+<div class="lab-container">
+    <div class="back-nav">
+        <a href="index.html" class="btn-back">← Voltar</a>
+    </div>
+
+    <canvas id="network-canvas"></canvas>
+
+    <div class="info-box" id="status-box">
+        <strong>ESTADO:</strong> <span id="status-label">Protocolo Desativado</span><br><br>
+        <span id="explanation">Sem o STP de Radia, as mensagens circulam em loops infinitos, travando a rede.</span>
+    </div>
+
+    <div class="controls">
+        <button id="stp-toggle" class="toggle-btn off" onclick="toggleSTP()">Ligar Protocolo Radia</button>
+        <button class="toggle-btn" style="background: white;" onclick="injectPacket()">Injetar Dados</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('network-canvas');
+    const ctx = canvas.getContext('2d');
+    const statusLabel = document.getElementById('status-label');
+    const explanation = document.getElementById('explanation');
+    const stpBtn = document.getElementById('stp-toggle');
+
+    let stpActive = false;
+    let nodes = [
+        {x: 100, y: 100, id: 0}, {x: 400, y: 50, id: 1}, 
+        {x: 700, y: 100, id: 2}, {x: 700, y: 350, id: 3},
+        {x: 400, y: 400, id: 4}, {x: 100, y: 350, id: 5}
+    ];
+
+    let connections = [
+        [0,1], [1,2], [2,3], [3,4], [4,5], [5,0], [1,4], [0,3]
+    ];
+
+    let packets = [];
+
+    function resize() {
+        canvas.width = 800;
+        canvas.height = 500;
+    }
+
+    function toggleSTP() {
+        stpActive = !stpActive;
+        stpBtn.classList.toggle('off', !stpActive);
+        stpBtn.innerText = stpActive ? "Protocolo Radia Ativo" : "Ligar Protocolo Radia";
+        statusLabel.innerText = stpActive ? "Rede Otimizada (Árvore)" : "Caos de Loop";
+        statusLabel.style.color = stpActive ? "var(--accent)" : "var(--danger)";
+        explanation.innerText = stpActive ? 
+            "O algoritmo eliminou loops redundantes. Agora os dados seguem o caminho mais eficiente." : 
+            "Sem o STP, os dados se multiplicam e circulam para sempre nos caminhos fechados.";
+        packets = [];
+    }
+
+    function injectPacket() {
+        packets.push({
+            current: 0,
+            target: 1,
+            progress: 0,
+            history: [0]
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Desenhar conexões
+        connections.forEach(conn => {
+            const n1 = nodes[conn[0]];
+            const n2 = nodes[conn[1]];
+            
+            // Lógica visual do STP: "corta" conexões que formam loop
+            let isBlocked = stpActive && (
+                (conn[0] === 5 && conn[1] === 0) || 
+                (conn[0] === 2 && conn[1] === 3) ||
+                (conn[0] === 0 && conn[1] === 3)
+            );
+
+            ctx.beginPath();
+            ctx.moveTo(n1.x, n1.y);
+            ctx.lineTo(n2.x, n2.y);
+            ctx.strokeStyle = isBlocked ? "rgba(255,255,255,0.05)" : "rgba(0, 255, 136, 0.3)";
+            ctx.setLineDash(isBlocked ? [5, 5] : []);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+
+        // Desenhar Nós
+        nodes.forEach(n => {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, 10, 0, Math.PI*2);
+            ctx.fillStyle = "#fff";
+            ctx.fill();
+        });
+
+        // Mover e desenhar pacotes
+        for (let i = packets.length - 1; i >= 0; i--) {
+            let p = packets[i];
+            const start = nodes[p.current];
+            const end = nodes[p.target];
+
+            p.progress += 0.02;
+
+            const x = start.x + (end.x - start.x) * p.progress;
+            const y = start.y + (end.y - start.y) * p.progress;
+
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI*2);
+            ctx.fillStyle = stpActive ? "var(--accent)" : "var(--danger)";
+            ctx.fill();
+
+            if (p.progress >= 1) {
+                const lastNode = p.target;
+                
+                // Lógica de Propagação
+                connections.forEach(conn => {
+                    let next = -1;
+                    if(conn[0] === lastNode) next = conn[1];
+                    else if(conn[1] === lastNode) next = conn[0];
+
+                    if(next !== -1 && next !== p.current) {
+                        // Se STP estiver desligado, aceita loops e gera novos pacotes (caos)
+                        if(!stpActive || (!((lastNode === 5 && next === 0) || (lastNode === 0 && next === 5) || (lastNode === 2 && next === 3) || (lastNode === 3 && next === 2) || (lastNode === 0 && next === 3) || (lastNode === 3 && next === 0)))) {
+                            packets.push({
+                                current: lastNode,
+                                target: next,
+                                progress: 0,
+                                history: [...p.history, next]
+                            });
+                        }
+                    }
+                });
+                packets.splice(i, 1);
+            }
+        }
+
+        // Limite de segurança para não travar o navegador no modo Caos
+        if(packets.length > 300) packets.splice(0, 100);
+
+        requestAnimationFrame(draw);
+    }
+
+    resize();
+    draw();
+</script>
+
+</body>
+</html>
